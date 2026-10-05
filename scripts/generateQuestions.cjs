@@ -481,7 +481,7 @@ const subjectTopicBank = {
     { subject: 'Mathematics', topic: 'Calculus & Coordinate Geometry', subjectHi: 'गणित', topicHi: 'कलन व ज्यामिति' },
     { subject: 'General Awareness', topic: 'Indian Navy Ships, Submarines & Bases', subjectHi: 'सामान्य ज्ञान', topicHi: 'नौसेना पोत व अड्डे' }
   ],
-  'agniveer-airforce': [
+  'agniveer-air-force': [
     { subject: 'English', topic: 'Comprehension & Grammar', subjectHi: 'अंग्रेजी', topicHi: 'व्याकरण' },
     { subject: 'Physics', topic: 'Thermodynamics & Kinetic Theory', subjectHi: 'भौतिकी', topicHi: 'ऊष्मागतिकी' },
     { subject: 'Physics', topic: 'Electrostatics & Current Electricity', subjectHi: 'भौतिकी', topicHi: 'विद्युत धारा' },
@@ -494,6 +494,13 @@ const subjectTopicBank = {
     { subject: 'Physics', topic: '10+2 Modern Physics & Kinematics', subjectHi: 'भौतिकी', topicHi: 'आधुनिक भौतिकी' },
     { subject: 'Reasoning', topic: 'Coding-Decoding & Direction Sense', subjectHi: 'रीजनिंग', topicHi: 'दिशा ज्ञान व कोडिंग' },
     { subject: 'General Knowledge', topic: 'Coastal Geography & Maritime Security', subjectHi: 'सामान्य ज्ञान', topicHi: 'तटीय भूगोल' }
+  ],
+  'technical-entries': [
+    { subject: 'Engineering Mathematics', topic: 'Linear Algebra & Differential Equations', subjectHi: 'इंजीनियरिंग गणित', topicHi: 'रैखिक बीजगणित व अवकल समीकरण' },
+    { subject: 'Basic Electronics', topic: 'Semiconductor Diodes & Logic Gates', subjectHi: 'इलेक्ट्रॉनिक्स', topicHi: 'सेमीकंडक्टर व लॉजिक गेट' },
+    { subject: 'Mechanical Sciences', topic: 'Thermodynamics & Fluid Mechanics', subjectHi: 'यांत्रिकी विज्ञान', topicHi: 'ऊष्मागतिकी व तरल यांत्रिकी' },
+    { subject: 'Electrical Engineering', topic: 'AC Circuits & Power Systems', subjectHi: 'विद्युत अभियांत्रिकी', topicHi: 'एसी परिपथ व पावर सिस्टम' },
+    { subject: 'Technical General Aptitude', topic: 'Spatial Reasoning & Engineering Graphics', subjectHi: 'तकनीकी योग्यता', topicHi: 'स्थानिक तर्कशक्ति' }
   ]
 };
 
@@ -643,8 +650,7 @@ const defenceGkFacts = [
   }
 ];
 
-// Generate comprehensive batches for each of the major exams
-const examKeys = ['nda', 'cds', 'afcat', 'agniveer-army', 'agniveer-navy', 'agniveer-airforce', 'coast-guard'];
+const examKeys = ['nda', 'cds', 'afcat', 'agniveer-army', 'agniveer-navy', 'agniveer-air-force', 'coast-guard', 'technical-entries'];
 const TARGET_PER_EXAM = 1250;
 
 examKeys.forEach(examKey => {
@@ -729,28 +735,139 @@ examKeys.forEach(examKey => {
 console.log(`Total questions generated across all exams: ${allQuestions.length}`);
 
 // Chunk and write to questions directory for high performance
-// 1. Write an index export that allows lazy or immediate loading
-const indexFilePath = path.join(TARGET_DIR, 'index.ts');
+const chunksDir = path.join(TARGET_DIR, 'chunks');
+if (!fs.existsSync(chunksDir)) {
+  fs.mkdirSync(chunksDir, { recursive: true });
+}
+
+// 1. Write per-exam minified JSON chunks
+const targetExamList = ['nda', 'cds', 'afcat', 'agniveer-army', 'agniveer-navy', 'agniveer-air-force', 'coast-guard', 'technical-entries'];
+const curatedQuestions = [];
+
+targetExamList.forEach((k) => {
+  const examQs = allQuestions.filter(q => q.exam === k);
+  const chunkPath = path.join(chunksDir, `${k}.json`);
+  fs.writeFileSync(chunkPath, JSON.stringify(examQs), 'utf8');
+  // Include top 35 flagship questions from each exam in curated bank
+  curatedQuestions.push(...examQs.slice(0, 35));
+  console.log(`Wrote chunk for ${k}: ${examQs.length} questions`);
+});
+
+// Also write minified complete allQuestions.json for fallback / full offline cache
 const jsonFilePath = path.join(TARGET_DIR, 'allQuestions.json');
+fs.writeFileSync(jsonFilePath, JSON.stringify(allQuestions), 'utf8');
 
-fs.writeFileSync(jsonFilePath, JSON.stringify(allQuestions, null, 2), 'utf8');
+// 2. Write curatedQuestions.ts (synchronously bundled, lightweight ~80KB)
+const curatedTsPath = path.join(TARGET_DIR, 'curatedQuestions.ts');
+fs.writeFileSync(
+  curatedTsPath,
+  `import { Question } from '../../types';\n\nexport const curatedQuestions: Question[] = ${JSON.stringify(curatedQuestions)};\n`,
+  'utf8'
+);
 
+// 3. Write dailyChallengeQuestions.ts (ultra-lightweight for Dashboard, ~10KB)
+const dailyTsPath = path.join(TARGET_DIR, 'dailyChallengeQuestions.ts');
+fs.writeFileSync(
+  dailyTsPath,
+  `import { Question } from '../../types';\n\nexport const dailyChallengeQuestions: Question[] = ${JSON.stringify(curatedQuestions.slice(0, 20))};\n`,
+  'utf8'
+);
+
+// 4. Write index.ts with code-splitting support
+const indexFilePath = path.join(TARGET_DIR, 'index.ts');
 const tsIndexContent = `// Master Question Bank for Defence Exams India Platform
 import { Question } from '../../types';
-import questionsData from './allQuestions.json';
+import { curatedQuestions } from './curatedQuestions';
 
-export const allQuestions: Question[] = questionsData as Question[];
+// Instant synchronous access to curated flagship questions
+export { curatedQuestions };
+export const allQuestions: Question[] = curatedQuestions;
+
+// Cache for dynamically loaded exam questions
+const examQuestionCache: Record<string, Question[]> = {};
+
+/**
+ * Dynamically loads all questions for a specific exam on demand.
+ * This keeps the initial bundle lightweight and fast on mobile devices.
+ */
+export const loadExamQuestions = async (examId: string): Promise<Question[]> => {
+  if (examQuestionCache[examId]) {
+    return examQuestionCache[examId];
+  }
+
+  try {
+    let loaded: Question[] = [];
+    switch (examId) {
+      case 'nda': {
+        const mod = await import('./chunks/nda.json');
+        loaded = (mod.default || mod) as Question[];
+        break;
+      }
+      case 'cds': {
+        const mod = await import('./chunks/cds.json');
+        loaded = (mod.default || mod) as Question[];
+        break;
+      }
+      case 'afcat': {
+        const mod = await import('./chunks/afcat.json');
+        loaded = (mod.default || mod) as Question[];
+        break;
+      }
+      case 'agniveer-army': {
+        const mod = await import('./chunks/agniveer-army.json');
+        loaded = (mod.default || mod) as Question[];
+        break;
+      }
+      case 'agniveer-navy': {
+        const mod = await import('./chunks/agniveer-navy.json');
+        loaded = (mod.default || mod) as Question[];
+        break;
+      }
+      case 'agniveer-air-force': {
+        const mod = await import('./chunks/agniveer-air-force.json');
+        loaded = (mod.default || mod) as Question[];
+        break;
+      }
+      case 'coast-guard': {
+        const mod = await import('./chunks/coast-guard.json');
+        loaded = (mod.default || mod) as Question[];
+        break;
+      }
+      case 'technical-entries': {
+        const mod = await import('./chunks/technical-entries.json');
+        loaded = (mod.default || mod) as Question[];
+        break;
+      }
+      default:
+        loaded = curatedQuestions.filter(q => q.exam === examId || q.exam === 'all');
+    }
+
+    if (loaded && loaded.length > 0) {
+      examQuestionCache[examId] = loaded;
+      return loaded;
+    }
+  } catch (err) {
+    console.warn(\`Failed to lazy-load questions for \${examId}, falling back to curated bank:\`, err);
+  }
+
+  return curatedQuestions.filter(q => examId === 'all' || q.exam === examId || q.exam === 'all');
+};
 
 export const getQuestionsByExam = (examId: string): Question[] => {
-  return allQuestions.filter(q => q.exam === examId || q.exam === 'all');
+  if (examQuestionCache[examId]) {
+    return examQuestionCache[examId];
+  }
+  return curatedQuestions.filter(q => q.exam === examId || q.exam === 'all');
 };
 
 export const getQuestionsBySubject = (examId: string, subject: string): Question[] => {
-  return allQuestions.filter(q => (q.exam === examId || q.exam === 'all') && q.subject.toLowerCase() === subject.toLowerCase());
+  const base = examQuestionCache[examId] || curatedQuestions;
+  return base.filter(q => (q.exam === examId || q.exam === 'all') && q.subject.toLowerCase() === subject.toLowerCase());
 };
 
 export const getPyqQuestions = (examId?: string): Question[] => {
-  return allQuestions.filter(q => {
+  const base = examId && examQuestionCache[examId] ? examQuestionCache[examId] : curatedQuestions;
+  return base.filter(q => {
     const isPyq = q.sourceType === 'VERIFIED PYQ' || q.sourceType === 'PYQ-STYLE';
     return examId ? isPyq && (q.exam === examId || q.exam === 'all') : isPyq;
   });
@@ -758,4 +875,5 @@ export const getPyqQuestions = (examId?: string): Question[] => {
 `;
 
 fs.writeFileSync(indexFilePath, tsIndexContent, 'utf8');
-console.log('Successfully wrote question bank and index files.');
+console.log('Successfully wrote chunked question bank and index files.');
+

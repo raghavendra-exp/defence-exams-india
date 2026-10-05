@@ -295,13 +295,13 @@ export const SSBPreparationLab: React.FC<SSBPreparationLabProps> = ({ onNavigate
                   autoFocus
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-900 dark:text-white outline-none focus:border-amber-500"
                 />
-                <div className="flex justify-between items-center text-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   <span className="text-slate-400">
                     Model Example: <em className="text-slate-600 dark:text-slate-300">{interactiveWATBank[currentWatIndex].sentence}</em>
                   </span>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-bold"
+                    className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-bold shrink-0 self-end sm:self-auto hover:bg-slate-800 transition-colors"
                   >
                     Next Word ➔
                   </button>

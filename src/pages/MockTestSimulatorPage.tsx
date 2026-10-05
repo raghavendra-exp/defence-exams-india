@@ -17,7 +17,7 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { useUserProgress } from '../context/UserProgressContext';
 import { allDefenceExams, defenceExamsMap } from '../data/exams';
-import { allQuestions } from '../data/questions';
+import { allQuestions, loadExamQuestions } from '../data/questions';
 import { Breadcrumb } from '../components/Breadcrumb';
 import { ExamCategory, TestAttemptResult, Question } from '../types';
 
@@ -36,6 +36,23 @@ export const MockTestSimulatorPage: React.FC<MockTestSimulatorPageProps> = ({
   const [selectedExamId, setSelectedExamId] = useState<string>(initialExamId);
   const [isTestActive, setIsTestActive] = useState<boolean>(false);
   const [testResult, setTestResult] = useState<TestAttemptResult | null>(null);
+  const [mobileViewTab, setMobileViewTab] = useState<'question' | 'palette'>('question');
+
+  // Dynamic question loading
+  const [examQuestions, setExamQuestions] = useState<Question[]>(allQuestions);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    loadExamQuestions(selectedExamId).then((qs) => {
+      if (isMounted) {
+        setExamQuestions(qs);
+        setIsLoading(false);
+      }
+    });
+    return () => { isMounted = false; };
+  }, [selectedExamId]);
 
   // Active Test State
   const [currentQIndex, setCurrentQIndex] = useState<number>(0);
@@ -49,10 +66,10 @@ export const MockTestSimulatorPage: React.FC<MockTestSimulatorPageProps> = ({
 
   // Question pool for this mock test
   const mockQuestions = useMemo(() => {
-    const list = allQuestions.filter(q => q.exam === selectedExamId || q.exam === 'all');
+    const list = examQuestions.filter(q => q.exam === selectedExamId || q.exam === 'all');
     // Take 30 balanced simulation questions for fast real-time mock
     return list.slice(0, 30);
-  }, [selectedExamId]);
+  }, [examQuestions, selectedExamId]);
 
   const activeQuestion = mockQuestions[currentQIndex] || mockQuestions[0];
 
@@ -230,182 +247,227 @@ export const MockTestSimulatorPage: React.FC<MockTestSimulatorPageProps> = ({
 
       {/* ACTIVE TEST SIMULATOR */}
       {isTestActive && (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Main Question Panel (3 cols on lg) */}
-          <div className="lg:col-span-3 space-y-4">
-            {/* Top Toolbar */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">
-                  {selectedExam.name} Official Mock
-                </span>
-                <span className="text-xs text-slate-400">
-                  | Q {currentQIndex + 1} of {mockQuestions.length}
-                </span>
-              </div>
-
-              {/* Countdown Timer */}
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 font-mono font-bold text-xs sm:text-sm border border-red-500/20">
-                <Clock className="h-4 w-4 animate-spin text-red-500" />
-                <span>{formatTimer(timeRemainingSeconds)}</span>
-              </div>
-            </div>
-
-            {/* Question Card */}
-            <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-7 shadow-xs space-y-5">
-              <div className="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="font-bold text-slate-600 dark:text-slate-300">
-                  {activeQuestion.subject} • {activeQuestion.topic}
-                </span>
-                <button
-                  onClick={() => {
-                    setMarkedForReview(prev => ({
-                      ...prev,
-                      [activeQuestion.id]: !prev[activeQuestion.id]
-                    }));
-                  }}
-                  className={`flex items-center gap-1 font-bold ${
-                    markedForReview[activeQuestion.id]
-                      ? 'text-purple-600 dark:text-purple-400'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <Bookmark className="h-4 w-4" />
-                  <span>{markedForReview[activeQuestion.id] ? 'Marked for Review' : 'Mark for Review'}</span>
-                </button>
-              </div>
-
-              {/* Question Text */}
-              <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-relaxed">
-                {lang === 'hi' ? activeQuestion.questionHi : activeQuestion.question}
-              </p>
-
-              {/* Options */}
-              <div className="space-y-2.5 pt-2">
-                {(lang === 'hi' ? activeQuestion.optionsHi : activeQuestion.options).map((opt, oIdx) => {
-                  const isSelected = userAnswers[activeQuestion.id] === oIdx;
-
-                  return (
-                    <button
-                      key={oIdx}
-                      onClick={() => {
-                        setUserAnswers(prev => ({
-                          ...prev,
-                          [activeQuestion.id]: oIdx
-                        }));
-                      }}
-                      className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-xs sm:text-sm font-medium transition-all text-left ${
-                        isSelected
-                          ? 'bg-amber-500/15 border-amber-600 text-amber-950 dark:text-amber-200 font-bold'
-                          : 'bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
-                      }`}
-                    >
-                      <span className={`h-6 w-6 rounded-lg font-mono text-xs flex items-center justify-center font-bold shrink-0 ${
-                        isSelected
-                          ? 'bg-amber-600 text-white'
-                          : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-500'
-                      }`}>
-                        {String.fromCharCode(65 + oIdx)}
-                      </span>
-                      <span>{opt}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Controls */}
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
-                <button
-                  onClick={() => {
-                    const next = { ...userAnswers };
-                    delete next[activeQuestion.id];
-                    setUserAnswers(next);
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-semibold"
-                >
-                  Clear Response
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentQIndex(prev => Math.max(0, prev - 1))}
-                    disabled={currentQIndex === 0}
-                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-bold disabled:opacity-30"
-                  >
-                    Previous
-                  </button>
-
-                  <button
-                    onClick={() => setCurrentQIndex(prev => Math.min(mockQuestions.length - 1, prev + 1))}
-                    disabled={currentQIndex === mockQuestions.length - 1}
-                    className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-bold"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </div>
+        <div className="space-y-4">
+          {/* Mobile Tab Switcher */}
+          <div className="flex lg:hidden items-center p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 text-xs font-bold gap-1 shadow-inner">
+            <button
+              onClick={() => setMobileViewTab('question')}
+              className={`flex-1 py-2 rounded-xl transition-all ${
+                mobileViewTab === 'question'
+                  ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              {lang === 'hi' ? `प्रश्न ${currentQIndex + 1}` : `Question ${currentQIndex + 1}`}
+            </button>
+            <button
+              onClick={() => setMobileViewTab('palette')}
+              className={`flex-1 py-2 rounded-xl transition-all ${
+                mobileViewTab === 'palette'
+                  ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              {lang === 'hi' 
+                ? `पैलेट (${Object.keys(userAnswers).length}/${mockQuestions.length})` 
+                : `Palette (${Object.keys(userAnswers).length}/${mockQuestions.length})`}
+            </button>
           </div>
 
-          {/* Right Question Palette (1 col on lg) */}
-          <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4 flex flex-col justify-between">
-            <div className="space-y-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Question Palette
-              </h3>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Main Question Panel (3 cols on lg, or visible on mobile if mobileViewTab === 'question') */}
+            <div className={`lg:col-span-3 space-y-4 ${mobileViewTab === 'palette' ? 'hidden lg:block' : 'block'}`}>
+              {/* Top Toolbar */}
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm">
+                    {selectedExam.name} Official Mock
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    | Q {currentQIndex + 1} of {mockQuestions.length}
+                  </span>
+                </div>
 
-              {/* Status summary */}
-              <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600 dark:text-slate-300">
-                <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-emerald-500"></div>
-                  <span>Answered ({Object.keys(userAnswers).length})</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-purple-500"></div>
-                  <span>Review ({Object.keys(markedForReview).length})</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="h-3 w-3 rounded-full bg-slate-200 dark:bg-slate-700"></div>
-                  <span>Not Answered ({mockQuestions.length - Object.keys(userAnswers).length})</span>
+                <div className="flex items-center gap-2">
+                  {/* Countdown Timer */}
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 font-mono font-bold text-xs sm:text-sm border border-red-500/20">
+                    <Clock className="h-4 w-4 animate-spin text-red-500" />
+                    <span>{formatTimer(timeRemainingSeconds)}</span>
+                  </div>
+
+                  <button
+                    onClick={handleSubmitTest}
+                    className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs shadow-sm transition-colors"
+                  >
+                    {lang === 'hi' ? 'सबमिट' : 'Submit'}
+                  </button>
                 </div>
               </div>
 
-              {/* Grid of question buttons */}
-              <div className="grid grid-cols-5 gap-2 max-h-72 overflow-y-auto p-1 scrollbar-thin">
-                {mockQuestions.map((q, idx) => {
-                  const isCurrent = currentQIndex === idx;
-                  const isAns = userAnswers[q.id] !== undefined;
-                  const isMarked = markedForReview[q.id];
+              {/* Question Card */}
+              <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-7 shadow-xs space-y-5">
+                <div className="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="font-bold text-slate-600 dark:text-slate-300">
+                    {activeQuestion.subject} • {activeQuestion.topic}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setMarkedForReview(prev => ({
+                        ...prev,
+                        [activeQuestion.id]: !prev[activeQuestion.id]
+                      }));
+                    }}
+                    className={`flex items-center gap-1 font-bold ${
+                      markedForReview[activeQuestion.id]
+                        ? 'text-purple-600 dark:text-purple-400'
+                        : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <Bookmark className="h-4 w-4" />
+                    <span>{markedForReview[activeQuestion.id] ? 'Marked for Review' : 'Mark for Review'}</span>
+                  </button>
+                </div>
 
-                  let btnColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+                {/* Question Text */}
+                <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-relaxed">
+                  {lang === 'hi' ? activeQuestion.questionHi : activeQuestion.question}
+                </p>
 
-                  if (isMarked) {
-                    btnColor = 'bg-purple-500 text-white border-purple-600';
-                  } else if (isAns) {
-                    btnColor = 'bg-emerald-600 text-white border-emerald-600';
-                  }
+                {/* Options */}
+                <div className="space-y-2.5 pt-2">
+                  {(lang === 'hi' ? activeQuestion.optionsHi : activeQuestion.options).map((opt, oIdx) => {
+                    const isSelected = userAnswers[activeQuestion.id] === oIdx;
 
-                  return (
+                    return (
+                      <button
+                        key={oIdx}
+                        onClick={() => {
+                          setUserAnswers(prev => ({
+                            ...prev,
+                            [activeQuestion.id]: oIdx
+                          }));
+                        }}
+                        className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-xs sm:text-sm font-medium transition-all text-left ${
+                          isSelected
+                            ? 'bg-amber-500/15 border-amber-600 text-amber-950 dark:text-amber-200 font-bold'
+                            : 'bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
+                        }`}
+                      >
+                        <span className={`h-6 w-6 rounded-lg font-mono text-xs flex items-center justify-center font-bold shrink-0 ${
+                          isSelected
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-500'
+                        }`}>
+                          {String.fromCharCode(65 + oIdx)}
+                        </span>
+                        <span>{opt}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Controls */}
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
+                  <button
+                    onClick={() => {
+                      const next = { ...userAnswers };
+                      delete next[activeQuestion.id];
+                      setUserAnswers(next);
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-semibold"
+                  >
+                    Clear Response
+                  </button>
+
+                  <div className="flex items-center gap-2">
                     <button
-                      key={q.id}
-                      onClick={() => setCurrentQIndex(idx)}
-                      className={`h-9 w-9 rounded-xl text-xs font-bold border transition-all flex items-center justify-center ${btnColor} ${
-                        isCurrent ? 'ring-2 ring-amber-500 ring-offset-2' : ''
-                      }`}
+                      onClick={() => setCurrentQIndex(prev => Math.max(0, prev - 1))}
+                      disabled={currentQIndex === 0}
+                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 font-bold disabled:opacity-30"
                     >
-                      {idx + 1}
+                      Previous
                     </button>
-                  );
-                })}
+
+                    <button
+                      onClick={() => setCurrentQIndex(prev => Math.min(mockQuestions.length - 1, prev + 1))}
+                      disabled={currentQIndex === mockQuestions.length - 1}
+                      className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 text-white font-bold"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <button
-              onClick={handleSubmitTest}
-              className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs shadow-md transition-colors"
-            >
-              Submit & View Analysis
-            </button>
+            {/* Right Question Palette (1 col on lg, or visible on mobile if mobileViewTab === 'palette') */}
+            <div className={`rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4 flex flex-col justify-between ${mobileViewTab === 'question' ? 'hidden lg:flex' : 'flex'}`}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Question Palette
+                  </h3>
+                  <span className="text-xs font-bold text-amber-600">
+                    {mockQuestions.length} Questions
+                  </span>
+                </div>
+
+                {/* Status summary */}
+                <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 rounded-full bg-emerald-500 shrink-0"></div>
+                    <span>Answered ({Object.keys(userAnswers).length})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 rounded-full bg-purple-500 shrink-0"></div>
+                    <span>Review ({Object.keys(markedForReview).length})</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 sm:col-span-2">
+                    <div className="h-3 w-3 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0"></div>
+                    <span>Not Answered ({mockQuestions.length - Object.keys(userAnswers).length})</span>
+                  </div>
+                </div>
+
+                {/* Grid of question buttons */}
+                <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-5 gap-2 max-h-80 overflow-y-auto p-1 scrollbar-thin">
+                  {mockQuestions.map((q, idx) => {
+                    const isCurrent = currentQIndex === idx;
+                    const isAns = userAnswers[q.id] !== undefined;
+                    const isMarked = markedForReview[q.id];
+
+                    let btnColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+
+                    if (isMarked) {
+                      btnColor = 'bg-purple-500 text-white border-purple-600';
+                    } else if (isAns) {
+                      btnColor = 'bg-emerald-600 text-white border-emerald-600';
+                    }
+
+                    return (
+                      <button
+                        key={q.id}
+                        onClick={() => {
+                          setCurrentQIndex(idx);
+                          setMobileViewTab('question');
+                        }}
+                        className={`h-9 w-9 rounded-xl text-xs font-bold border transition-all flex items-center justify-center ${btnColor} ${
+                          isCurrent ? 'ring-2 ring-amber-500 ring-offset-2' : ''
+                        }`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                onClick={handleSubmitTest}
+                className="w-full py-3.5 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black text-xs shadow-md transition-colors"
+              >
+                Submit & View Analysis
+              </button>
+            </div>
           </div>
         </div>
       )}

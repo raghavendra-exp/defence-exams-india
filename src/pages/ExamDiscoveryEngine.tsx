@@ -39,18 +39,30 @@ export const ExamDiscoveryEngine: React.FC<ExamDiscoveryEngineProps> = ({ onNavi
   const [nccGrade, setNccGrade] = useState<'A' | 'B' | 'C'>('B');
   const [isExServiceman, setIsExServiceman] = useState<boolean>(false);
 
-  // Calculate current age in years and months as of current date (2026 reference)
-  const ageYears = useMemo(() => {
-    if (!dob) return 20;
+  // Calculate current age in years, months and days (2026 reference)
+  const ageDetails = useMemo(() => {
+    if (!dob) return { years: 20, months: 0, days: 0, decimalAge: 20, displayString: '20 Yrs' };
     const birthDate = new Date(dob);
-    const refDate = new Date('2026-10-01');
-    let age = refDate.getFullYear() - birthDate.getFullYear();
-    const m = refDate.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && refDate.getDate() < birthDate.getDate())) {
-      age--;
+    const refDate = new Date();
+    let years = refDate.getFullYear() - birthDate.getFullYear();
+    let months = refDate.getMonth() - birthDate.getMonth();
+    let days = refDate.getDate() - birthDate.getDate();
+
+    if (days < 0) {
+      months--;
+      const prevMonth = new Date(refDate.getFullYear(), refDate.getMonth(), 0);
+      days += prevMonth.getDate();
     }
-    return age + (refDate.getMonth() - birthDate.getMonth() >= 0 ? (refDate.getMonth() - birthDate.getMonth()) / 12 : 0.5);
-  }, [dob]);
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+    const decimalAge = years + (months / 12) + (days / 365.25);
+    const displayString = `${years} ${lang === 'hi' ? 'वर्ष' : 'Yrs'}, ${months} ${lang === 'hi' ? 'माह' : 'Mos'}`;
+    return { years, months, days, decimalAge, displayString };
+  }, [dob, lang]);
+
+  const ageYears = ageDetails.decimalAge;
 
   // Evaluate matching entries across all defence branches
   const evaluationResults = useMemo(() => {
@@ -86,8 +98,8 @@ export const ExamDiscoveryEngine: React.FC<ExamDiscoveryEngineProps> = ({ onNavi
           isEligible = false;
           reasons.push(
             lang === 'hi' 
-              ? `आयु सीमा (${rules.minAgeYears} - ${rules.maxAgeYears} वर्ष) से बाहर है। आपकी आयु लगभग ${ageYears.toFixed(1)} वर्ष है।` 
-              : `Age out of range (${rules.minAgeYears} - ${rules.maxAgeYears} yrs). Your age is ~${ageYears.toFixed(1)} yrs.`
+              ? `आयु सीमा (${rules.minAgeYears} - ${rules.maxAgeYears} वर्ष) से बाहर है। आपकी आयु ${ageDetails.displayString} है।` 
+              : `Age out of range (${rules.minAgeYears} - ${rules.maxAgeYears} yrs). Your age is ${ageDetails.displayString}.`
           );
         }
 
@@ -241,7 +253,7 @@ export const ExamDiscoveryEngine: React.FC<ExamDiscoveryEngineProps> = ({ onNavi
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
               <span>{lang === 'hi' ? 'जन्म तिथि (DOB)' : 'Date of Birth'}</span>
               <span className="text-amber-600 dark:text-amber-400 font-mono text-[11px]">
-                {lang === 'hi' ? `आयु: ~${ageYears.toFixed(1)} वर्ष` : `Age: ~${ageYears.toFixed(1)} yrs`}
+                {lang === 'hi' ? `आयु: ${ageDetails.displayString}` : `Age: ${ageDetails.displayString}`}
               </span>
             </label>
             <input
@@ -371,7 +383,7 @@ export const ExamDiscoveryEngine: React.FC<ExamDiscoveryEngineProps> = ({ onNavi
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
               {lang === 'hi' ? 'एनसीसी प्रमाणपत्र (NCC)' : 'NCC Certificate'}
             </label>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {(['none', 'A', 'B', 'C'] as const).map((lvl) => (
                 <button
                   key={lvl}

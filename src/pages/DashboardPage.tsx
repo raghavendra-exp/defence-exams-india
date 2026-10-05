@@ -21,7 +21,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useUserProgress } from '../context/UserProgressContext';
 import { allDefenceExams } from '../data/exams';
 import { liveNotifications } from '../data/updates/notificationsData';
-import { allQuestions } from '../data/questions';
+import { dailyChallengeQuestions } from '../data/questions/dailyChallengeQuestions';
 import { OfficialSourceBanner } from '../components/OfficialSourceBanner';
 
 interface DashboardPageProps {
@@ -34,7 +34,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
 
   // Daily Challenge Question
   const [dailyAnswered, setDailyAnswered] = useState<number | null>(null);
-  const dailyQuestion = allQuestions[12] || allQuestions[0];
+  const dailyQuestion = dailyChallengeQuestions[12] || dailyChallengeQuestions[0];
 
   const mottos = [
     { arm: lang === 'hi' ? 'भारतीय सेना' : 'Indian Army', motto: 'Seva Paramo Dharmah', mottoHi: 'सेवा परमो धर्मः', meaning: 'Service Before Self' },
@@ -119,11 +119,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-          <div className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400">8,750+</div>
+          <div className="text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400">10,000+</div>
           <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">
             {lang === 'hi' ? 'अभ्यास एवं PYQ प्रश्न' : 'Practice & PYQ Bank'}
           </div>
-          <div className="text-[10px] text-slate-400">1,250+ per major exam with solutions</div>
+          <div className="text-[10px] text-slate-400">1,250 per major exam with solutions</div>
         </div>
 
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">

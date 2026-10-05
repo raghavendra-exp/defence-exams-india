@@ -9,6 +9,7 @@ export type ExamCategory =
   | 'agniveer-army' 
   | 'agniveer-navy' 
   | 'agniveer-airforce' 
+  | 'agniveer-air-force'
   | 'coast-guard' 
   | 'technical-entries';
 

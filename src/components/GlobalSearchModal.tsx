@@ -86,10 +86,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-20 px-3 bg-slate-950/70 backdrop-blur-xs">
-      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[80vh]">
+    <div className="fixed inset-0 z-50 flex items-start justify-center sm:pt-16 p-0 sm:px-4 bg-slate-950/75 backdrop-blur-xs">
+      <div className="w-full h-full sm:h-auto sm:max-h-[85vh] max-w-2xl bg-white dark:bg-slate-900 sm:rounded-2xl shadow-2xl border-0 sm:border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 gap-3">
+        <div className="flex items-center px-4 py-3.5 border-b border-slate-200 dark:border-slate-800 gap-3 shrink-0">
           <Search className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
           <input
             type="text"
@@ -102,16 +102,18 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0"
+              aria-label="Clear Search"
             >
               <X className="h-4 w-4" />
             </button>
           )}
           <button
             onClick={onClose}
-            className="px-2 py-1 text-xs font-semibold rounded bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0"
+            aria-label="Close Modal"
           >
-            ESC
+            ✕
           </button>
         </div>
 

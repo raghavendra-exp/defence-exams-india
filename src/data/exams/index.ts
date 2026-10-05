@@ -26,6 +26,7 @@ export const defenceExamsMap: Record<ExamCategory, DefenceExam> = {
   'agniveer-army': agniveerArmyExamData,
   'agniveer-navy': agniveerNavyExamData,
   'agniveer-airforce': agniveerAirForceExamData,
+  'agniveer-air-force': agniveerAirForceExamData,
   'coast-guard': coastGuardExamData,
   'technical-entries': technicalEntriesExamData
 };
